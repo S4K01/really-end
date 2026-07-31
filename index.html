@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Redirecting...</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --void: #020202;
+    --panel: #0a0000;
+    --panel-border: #2a0000;
+    --amber: #ff9d00;
+    --danger: #ff003c;
+    --danger-dim: #5c0f1b;
+    --cold: #00d4ff;
+    --ghost: #1a1a1a;
+    --ghost-bright: #666666;
+    --white: #ffffff;
+  }
+
+  * { 
+    margin: 0; padding: 0; box-sizing: border-box; 
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    height: 100%; height: 100dvh; width: 100%;
+    background: var(--void); overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    user-select: none; -webkit-user-select: none; cursor: default;
+  }
+
+  #start-screen {
+    position: fixed; inset: 0; background: #050505; color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 500; font-family: sans-serif;
+  }
+  
+  #start-btn {
+    padding: 15px 40px; background: #fff; color: #000;
+    border: none; border-radius: 4px; font-size: 16px; font-weight: bold;
+    cursor: pointer; box-shadow: 0 4px 15px rgba(255,255,255,0.2);
+    margin-top: 20px; transition: transform 0.1s;
+  }
+  #start-btn:active { transform: scale(0.95); }
+
+  #camera-black {
+    position: fixed; inset: 0; background: #000000; z-index: 200; display: none;
+  }
+
+  #camera-flash {
+    position: fixed; inset: 0; background: #ffffff; z-index: 201;
+    opacity: 0; pointer-events: none;
+  }
+
+  .flash-bang { animation: flashAnim 0.15s ease-out forwards; }
+  @keyframes flashAnim {
+    0% { opacity: 1; } 20% { opacity: 1; } 100% { opacity: 0; }
+  }
+
+  #noise {
+    position: fixed; inset: 0; z-index: 1; opacity: 0.07; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  #screen {
+    position: relative; z-index: 2; height: 100%; width: 100%;
+    padding: 4vh 5vw; color: var(--danger); display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  #vignette {
+    pointer-events: none; position: fixed; inset: 0; z-index: 49;
+    background: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.95) 100%);
+  }
+
+  #flicker {
+    pointer-events: none; position: fixed; inset: 0; z-index: 51;
+    background: rgba(255,0,60,0.04); opacity: 0; animation: flickeranim 3s infinite;
+  }
+
+  @keyframes flickeranim {
+    0% { opacity: 0; } 1% { opacity: 0.8; } 2% { opacity: 0; }
+    30% { opacity: 0; } 31% { opacity: 0.4; } 32% { opacity: 0; } 100% { opacity: 0; }
+  }
+
+  #topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: clamp(10px, 1.5vw, 13px); letter-spacing: 2px;
+    color: var(--ghost-bright); border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 10px; margin-bottom: 15px;
+  }
+
+  #topbar .dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--danger); margin-right: 6px;
+    box-shadow: 0 0 10px var(--danger); animation: pulse 0.4s infinite;
+  }
+  @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+
+  #log {
+    white-space: pre-wrap; word-wrap: break-word; 
+    font-size: clamp(12px, 3.5vw, 16px); line-height: 1.6;
+    text-shadow: 0 0 5px rgba(255,0,60,0.6); overflow-y: auto; overflow-x: hidden;
+    max-height: 85vh; padding-right: 5px; flex-grow: 1;
+  }
+
+  #log::-webkit-scrollbar { width: 3px; }
+  #log::-webkit-scrollbar-thumb { background: var(--danger-dim); }
+
+  .danger { color: var(--danger); text-shadow: 0 0 8px rgba(255,0,60,0.8); }
+  .cold { color: var(--cold); text-shadow: 0 0 8px rgba(0,212,255,0.6); }
+  .ghost { color: var(--ghost-bright); text-shadow: none; }
+  .dim { color: var(--ghost); }
+  .bright { color: var(--white); text-shadow: 0 0 10px rgba(255,255,255,0.7); }
+  .amber { color: var(--amber); text-shadow: 0 0 6px rgba(255,157,0,0.6); }
+
+  .panelbox {
+    border: 1px solid var(--danger); background: rgba(255,0,60,0.04);
+    padding: 12px; margin: 12px 0; border-left: 3px solid var(--danger);
+    font-size: clamp(11px, 2.5vw, 14px); line-height: 1.7;
+  }
+
+  .ascii-art {
+    font-family: monospace; font-size: clamp(9px, 1.8vw, 11px); 
+    line-height: 1.1; white-space: pre; color: var(--danger);
+    margin: 15px 0; text-align: center;
+    text-shadow: 0 0 12px rgba(255,0,60,0.9);
+  }
+
+  .symbol-container {
+    display: flex; justify-content: center; align-items: center;
+    margin: 20px 0; width: 100%;
+  }
+
+  .demon-svg {
+    width: clamp(160px, 35vw, 240px); height: auto;
+    filter: drop-shadow(0 0 15px rgba(255, 0, 60, 0.9));
+    animation: pulseSymbol 0.8s infinite alternate ease-in-out;
+  }
+
+  @keyframes pulseSymbol {
+    0% { transform: scale(0.96); filter: drop-shadow(0 0 10px rgba(255,0,60,0.8)); }
+    100% { transform: scale(1.04); filter: drop-shadow(0 0 25px rgba(255,0,60,1)); }
+  }
+
+  .shake-violent { animation: shakeanim 0.08s infinite; }
+  @keyframes shakeanim {
+    0% { transform: translate(0,0); } 25% { transform: translate(-6px,5px); }
+    50% { transform: translate(6px,-5px); } 75% { transform: translate(-5px,-6px); }
+    100% { transform: translate(5px,6px); }
+  }
+
+  #jumpglitch {
+    position: fixed; inset: 0; z-index: 60; background: var(--danger);
+    opacity: 0; pointer-events: none; mix-blend-mode: color-burn;
+  }
+
+  #face-flash {
+    position: fixed; inset: 0; z-index: 55;
+    background-size: cover; background-position: center;
+    opacity: 0; pointer-events: none; mix-blend-mode: hard-light;
+    filter: contrast(1.5) grayscale(1) invert(1) sepia(1) hue-rotate(300deg);
+  }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div style="font-size: 13px; color: #888; margin-bottom: 20px; letter-spacing: 1px;">ESTABLISHING SECURE CONNECTION...</div>
+  <button id="start-btn">VERIFY LINK</button>
+</div>
+
+<div id="camera-black"></div>
+<div id="camera-flash"></div>
+<div id="noise"></div>
+<div id="vignette"></div>
+<div id="flicker"></div>
+<div id="jumpglitch"></div>
+<div id="face-flash"></div>
+
+<div id="screen">
+  <div id="topbar">
+    <span><span class="dot"></span>ROOT_INTERCEPT</span>
+    <span id="clock">00:00:00</span>
+  </div>
+  <div id="log"></div>
+</div>
+
+<script>
+  /* =========================================================
+     CONFIGURATION VARIABLES
+     Change these to target a new victim anytime.
+     ========================================================= */
+  const TARGET_NAME = "Mohamed"; // The name of the victim you are sending the link to
+  const FRIEND_NAME = "Abdo";    // The name of the friend who they think sent the link
+  const WEAKNESS = "leg";        // A physical trait, injury, or secret to creep them out (e.g., "leg", "back", "glasses")
+
+  const STRANGE_MESSAGE_ASCII = `
+<div style="font-size: clamp(3px, 1.2vw, 8px); line-height: 1; overflow: hidden; width: 100%;">
+⣿⡅⠀⡀⠀⠀⠀⠀⡄⠀⠄⠀⠠⡁⡘⠀⠀⠀⠠⠀⠀⠤⠠⡎⠄⠀⠀⠀⡄⢂⡇⢀⡀⠀⠂⢦⠀⠐⠀⠁⡐⣀⡀⢀⠀⢘⢀⡠⠂⠀⡀⢀⡀⠀⠘⠋⢙⠀⠀⠁⠀⠁⠀⠠⠀
+⣿⡇⠀⠄⠀⠀⠀⠐⡆⠀⠂⠀⠔⢨⡅⠀⠀⠃⠐⠇⠀⠀⠀⣽⣾⣶⠓⢶⡃⢌⠀⠀⠐⠀⠘⣂⠘⠀⠀⡇⠀⢿⢿⠾⠿⠿⠲⠂⡀⠀⡆⠀⣹⠖⠀⠐⠲⠆⠠⡇⠀⡐⠒⠒⠀
+⣿⡁⠀⠁⠀⠀⠀⠀⡃⠀⠄⠀⡭⠀⣡⠤⠤⠀⠨⡖⠒⡆⢠⡼⠁⢏⠀⠀⡴⢾⡆⠀⠆⠀⠀⡇⢀⠀⠀⡀⠈⢏⠀⡐⠀⠀⢁⠀⠀⠀⠆⠀⠀⠀⠀⠀⠀⡀⠀⡀⠀⡆⠀⠐⠈
+⣿⡇⠀⣀⠀⠀⠀⠀⠁⠀⠁⠀⠀⠄⠀⠀⠀⡀⢐⠁⠀⡄⠀⠙⡛⠛⠒⠛⣶⣌⣣⠀⠀⠀⠰⡡⡊⠀⠀⠀⢈⠌⠀⠀⠀⢰⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡟⢿⠏⠉⡃⠀⠀⠀
+⣿⠁⠀⠃⠀⠀⠀⠀⢀⠀⠄⠀⠐⠀⠐⠀⠀⠀⠀⠆⠀⠄⠀⢘⠄⠀⠀⠀⣾⢷⡇⠀⡆⠀⠀⢇⠀⡀⢀⡆⢀⠂⠀⠐⠀⠈⡀⠀⡁⠀⠀⠀⠅⠀⣰⠀⠀⡄⠈⡁⠀⠆⠀⠀⠀
+⣿⡂⠀⠀⠀⠀⠀⠆⠈⠀⠂⠀⡀⠠⠀⠀⠀⠀⢈⡃⠀⠂⠀⠒⠄⠀⠀⠀⠀⠬⠁⠀⠁⠀⢀⡇⢀⠀⠀⢄⢀⡞⠀⠀⠀⠀⡁⠈⠁⠀⠀⠀⢄⠀⠀⠐⠠⡶⠶⡏⠙⢃⠀⣠⠀
+⣧⡄⠀⠅⠀⢰⡶⢷⠀⠀⠂⠀⡂⠁⢀⠀⠀⠀⠠⡄⠀⡄⠀⡌⠂⠀⠀⠀⠒⡘⡄⠀⠀⠀⠸⠆⠀⡀⠀⠃⠀⡛⠀⠀⠠⠴⡀⠀⡇⠀⠁⠀⣺⠀⠘⠀⠠⡋⣈⡷⠶⢇⠀⡸⠀
+⣿⡇⠀⠄⠀⠈⠡⠀⣄⡤⡄⠀⡇⠠⢃⠀⠀⠀⢐⡀⠀⣄⣀⠐⡃⣠⠤⠀⡄⡰⡇⠀⢃⢀⣀⢋⢀⠁⠀⠃⢀⣇⠀⠀⠀⠀⠄⠀⠁⠀⠁⠀⣺⣤⣌⠀⠀⠖⠀⠗⠲⡇⠀⠄⠀
+⣿⠆⠀⠀⠀⠀⢀⣴⡿⠥⠳⠀⡆⡁⠀⠀⢀⡤⣦⠁⠀⡁⠀⢐⢠⣤⣄⡀⣧⣟⣿⣥⣼⣷⣾⣶⣶⣴⣶⣦⣬⣁⠠⠀⠀⠀⠦⠀⠀⠀⠆⠀⠀⠘⠙⠁⠈⡄⠠⡅⠀⡂⠀⠈⠀
+⣿⠀⠀⠀⠀⢸⠘⠻⠀⠀⠀⠀⠇⠀⢠⠀⠈⠁⢁⣤⣠⣅⣶⣾⣿⣷⣿⣿⣿⡿⡿⠿⡿⠿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣽⣲⡡⡀⠀⠄⠀⡄⠀⠀⠀⠀⠀⠃⠃⠀⠀⠀⠐⠀
+⣟⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠂⠀⡀⣀⣴⣾⣿⣿⣿⣿⣿⣿⣿⢿⠉⣡⣾⣶⣾⣿⣷⣿⣿⣮⣦⢫⡟⢿⣿⣿⣿⣿⣿⣿⣷⣧⣤⣦⢤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠅⠀⠘⠀
+⣿⣄⡐⠁⠀⠀⠀⠀⠀⠀⠀⣠⣶⣷⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠎⢰⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⡦⡷⣎⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣏⣷⡄⣀⠀⡄⠀⠀⠀⠁⠀⠀⠀
+⣿⡷⡜⡎⡘⠀⣠⢦⢄⣤⣽⣷⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠆⣼⣿⣼⣉⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣺⠾⣵⢦⣀⠀⠀⠀⢀⠀
+⣿⢺⠽⡇⣾⣹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⢬⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⢳⡿⣛⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢟⣿⣿⣜⣆⠀⠀⢰⠠
+⡿⠈⡀⠁⠀⠀⠉⠉⠉⠙⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣹⡆⠚⢿⣿⣿⣿⢿⣿⣿⠻⠀⣀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣹⣏⠟⠉⠉⠀⠖⠀⢀⠘
+⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠛⠻⡿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣭⣢⡏⠀⠀⠈⢠⣛⣰⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⡺⠁⠀⠉⠀⠀⡀⠀⡄⠀⠨⠀
+⣿⠃⠀⠀⠀⠀⢀⠀⡀⠀⠀⠀⡂⠁⠀⠀⠀⠀⢡⠂⠀⠙⠛⠿⣿⣿⣿⣿⣿⣿⣿⣶⣶⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⡟⠀⠙⠀⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠨⢠
+⣿⠈⠀⠀⠀⠀⠀⡄⠀⠀⡄⠀⠃⠀⠀⠀⠀⠒⠠⡄⠀⠀⠀⢲⢈⠀⠈⠀⠃⢋⠛⠙⢿⠿⢻⡿⠿⡿⠿⠿⢿⣟⠋⠏⠀⠀⠉⠀⠀⠀⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠂⠀⠀⢸
+⣿⠃⠀⠀⠀⠀⠠⣖⠀⠀⠀⠀⡀⠂⠀⠀⠀⡀⠠⡅⠀⠀⠠⡼⠀⠈⠀⠀⠀⢸⡀⠀⠀⠀⠌⡒⠀⠀⠀⣄⣈⡎⠀⣠⠤⢤⠈⠀⠀⠀⠀⠀⠄⠀⠀⠀⠀⠀⠀⠂⠀⠀⠀⠀⠸
+⣿⠁⠀⠀⠀⠋⠐⠀⠂⠀⠀⠀⠁⠀⠀⠀⠀⠁⢀⠃⠀⠀⠀⠀⡅⠀⠀⠀⠀⡡⠟⠛⡻⠀⠠⡕⠀⠀⠀⠁⢀⠾⠁⡙⠚⠻⣀⢀⡆⠀⠀⠀⠙⠀⠀⠀⠀⡃⠀⠀⠀⢀⠀⢰⣈
+⡧⠆⠀⠂⠀⠀⠀⠀⠀⠀⠀⠀⢀⠁⡀⠀⠀⠂⠠⠀⠀⠀⠀⠡⠄⠀⠀⢀⠀⢒⡀⠀⠇⠀⢰⡐⠀⠁⠀⡁⠐⡠⠀⠀⠀⠠⠡⠀⡄⠀⠀⠈⠎⠀⠁⠀⠂⠀⠀⠆⠀⠂⠀⢸⢠
+⡟⠄⠀⠀⠀⢀⠀⠀⠀⠀⠔⠀⠈⡀⢰⠀⠀⠀⠠⠅⠀⣇⣀⡼⠀⠰⠀⠀⠿⢂⡅⠀⠄⠀⢀⠇⠀⡀⠀⠁⢀⡧⠀⠀⠀⠀⠄⠀⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⢸⠠
+⡯⠀⠀⠀⠀⠀⠀⠁⠀⠀⠄⠀⠅⡀⡀⠀⠀⠀⢐⠃⠀⠀⠀⠂⡁⠀⠀⠀⠀⠌⠆⠀⠃⠀⢀⡋⠀⠀⠀⠁⠠⢀⠀⠀⠀⠀⠆⠀⡅⠀⠁⠀⠀⠀⠀⠀⠀⡆⠀⡀⠀⠆⠀⢰⣻
+⡗⠂⠀⠀⠀⠠⠸⠠⡅⠀⠀⠀⢅⠀⠓⠀⠀⠀⡈⠤⠀⠀⠀⠰⠴⢴⠀⠀⠄⢊⡅⠀⢁⠀⡰⡱⠀⡀⠀⡄⠈⠄⠀⢀⠀⢠⠔⠂⠆⠀⠀⠀⠊⠀⠀⠀⠠⠇⠀⠄⠀⡤⠀⣲⣾
+</div>
+  `;
+
+  const DEMON_RAM_SKULL_ASCII = `
+<div class="symbol-container" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height: 100%; width: 100%; overflow: hidden;">
+  <div class="ascii-art" style="font-size: clamp(2px, 0.8vw, 6px); line-height: 1; color: var(--danger); text-shadow: 0 0 20px rgba(255,0,60,1); white-space: pre; text-align: center; font-weight: bold;">
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⡠⠤⠀⠂⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⡶⢠⠆⡰⡦⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⠒⠤⠤⠤⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠴⠢⠔⠒⠓⠆⡠⠤⠀⠀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⣔⣿⡃⠏⣠⣧⡸⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠩⠕⣒⣈⡲⠤⡤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠡⢒⠞⡒⢉⠀⡀⠀⠀⠉⠓⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠰⡿⢯⠞⠀⠀⠡⠈⢽⣾⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠥⣞⢩⣙⠧⠄⢀⡠⠊⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⢲⠂⡴⢠⠜⢋⠄⣀⣀⣈⡱⠤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⢻⡘⠘⠇⠀⠀⠀⡄⠘⢾⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢌⡒⠒⠂⠀⠒⠲⢹⣮⠁⠀⢀⡠⠖⠁⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠄⠀⠀⠋⣱⡔⣁⠴⠁⢒⠀⢀⠀⠌⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⠀⡰⡰⠀⠀⠀⠁⠢⢨⣷⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠤⣉⡫⢥⢥⣀⣢⠥⠤⢤⣤⠗⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⡂⠀⠀⠀⢸⠜⠪⠭⠯⠤⠀⡀⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⡅⢸⠀⠀⢀⠀⠀⠃⠔⣷⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠚⠩⠁⣀⠀⣱⣒⠒⠀⡤⠖⢋⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⢎⢠⠀⢓⠤⠐⠭⠐⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣄⡆⠀⢀⣿⣆⠀⠀⣸⡽⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠤⠛⠒⠀⠀⣀⣐⡗⠊⣀⡀⠵⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣤⣀⠀⠀⠀⠀⢋⣉⣇⣀⣐⣒⣂⠑⠒⠖⢦⡔⢂⡤⠒⠀⠀⠀⠀⠀⠀⠀⢻⣿⣷⡀⡾⣽⣿⡆⣸⣿⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠒⡶⣖⣛⠓⣀⣀⣀⣀⠀⠀⠘⠒⠀⣀⣠⡴⠂⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣽⣲⣶⣤⣉⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣿⣷⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣼⢟⣿⣿⣿⣻⣿⣿⣿⣿⣿⣿⣿⡿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠈⠉⠛⠉⠛⠛⠛⠛⠻⠿⢿⣿⣿⣿⣿⡽⢛⣾⣤⡄⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⣿⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⢚⣽⣯⣼⣿⣿⡿⠿⠿⠻⠿⠟⠟⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠲⢦⣄⣀⠀⠐⢶⣶⣦⣬⣷⣾⣶⣦⣴⣤⡶⣤⣤⣤⣤⣄⠒⠄⡈⠿⠿⣾⣧⣦⠚⢿⣦⡀⠀⠀⠀⠀⠀⠀⠘⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⣠⠴⣟⣯⣳⣷⣿⠟⣋⠁⡀⠀⣀⣀⠀⢤⡠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⢀⡀⠀⠀⠀⠙⢻⣿⣶⣶⣽⣿⣿⣿⣿⣿⣿⡿⠿⠛⠛⠓⠻⠿⣿⣿⣷⡢⠄⠀⠉⢹⣿⣷⣦⣯⣻⣦⣀⣠⠔⠀⠀⠀⢻⣿⣿⣿⡿⠀⠀⡀⠀⠀⠒⢀⡾⣁⣣⣷⣿⡿⠉⠀⠨⡀⠖⠤⡤⠀⠀⢀⡓⠭⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠹⣷⣦⣄⣀⠀⠈⠻⣿⣿⣿⣿⣿⠟⠋⠀⠀⣀⣤⣶⣾⣿⣿⣿⣿⡞⣭⣯⣽⠆⡄⠈⢿⣿⣿⣻⣿⣷⡄⠄⠀⠀⠀⢸⣿⣿⣿⡇⠀⠀⠀⠉⠀⡴⣧⣨⣿⣿⣟⠉⠀⠀⣉⡁⢄⠈⢭⣿⣾⣶⣦⣵⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠹⣿⣿⣿⣿⣷⣿⣿⣿⣿⡿⠁⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣮⣍⠻⠱⢭⣚⢮⣔⢀⠄⢹⣿⣿⣿⣿⣿⡄⠀⠀⠀⢰⣿⣿⣿⡇⠀⠀⠀⢀⣾⣭⣿⣿⣿⠋⠁⢀⠀⡀⠀⠀⠀⠀⠀⠈⠉⢿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠹⣻⣿⣿⣿⣿⣿⣿⡿⠀⠀⠀⣴⣿⣿⣿⣿⣿⣯⣙⠻⠻⣿⣷⣤⡀⠀⠀⠈⠛⠈⠀⠹⣿⣿⣿⣯⣿⣆⠀⠀⢰⣿⣿⣿⣇⠀⠀⢀⣿⢞⣿⣿⣿⠋⠁⡀⠈⠊⠉⠒⠀⡀⠀⠀⠀⠀⠀⠻⣿⣿⣿⣿⣷⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠘⣿⣿⣿⣿⣿⣿⡇⠀⠀⣸⣿⣿⣿⣵⡙⠋⠛⠛⠧⠀⠀⣨⣵⣿⡷⣦⡀⠀⠀⠀⠀⠘⣿⣿⣿⣿⣿⡄⠀⣸⣿⣿⣿⣿⠀⢀⣾⣧⣿⣿⣿⠃⠀⠀⠈⠁⠀⢠⣞⢟⣿⣿⣦⡀⠀⠀⠀⠈⠻⣿⣻⣟⢿⣧⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⠿⣿⣿⣿⣿⡆⠀⠀⣿⣿⣿⣿⣿⣷⣤⠀⠀⠀⠀⣰⣿⣿⣿⠋⠙⣧⠀⠀⠀⠀⠀⠸⣿⣿⣿⣿⣿⣿⣿⣿⡏⣹⣿⣷⣿⣿⣿⣿⣿⡃⠀⠀⠀⠀⠀⠂⡮⣿⢊⣿⣿⣽⣷⣄⠀⠀⠀⠀⠈⢷⣯⡣⢪⠈⠓⠆⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠹⢿⣿⣿⣇⠀⠐⣿⣿⢿⣯⣿⢿⣿⣟⣄⡀⣰⣿⣿⣿⡧⣍⢩⣿⠀⠀⠀⠀⣠⣭⣿⣿⣿⡿⣿⣿⣟⠿⣹⣭⣹⣩⣿⣿⣿⣿⣿⡲⡒⠉⠁⠁⠀⠀⡇⡟⣽⣿⢿⣻⣿⣿⣷⢶⣦⣤⣀⣀⠙⡿⢷⣍⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠠⣄⡀⠀⠀⠀⠈⠿⣿⣿⣆⠀⣿⣿⣷⣍⠙⠻⣿⣻⣝⢶⣿⣿⣿⣿⣿⣒⢹⣿⣀⣤⣤⣾⣿⢿⡿⣿⣿⡿⡝⣻⢿⡟⢞⣽⡣⢿⣿⣿⣿⣿⣿⣷⣶⣤⣀⣀⠀⠀⣣⡯⣳⡿⣾⣼⣿⣿⣿⣆⠉⠿⣿⡿⣿⣾⣷⣜⠻⠦⡀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠉⣷⣶⣤⣀⠀⠙⡿⣿⣦⣹⣿⣷⡉⠓⠤⠀⠈⠑⣿⣿⣿⣿⣿⣿⣯⢯⣿⡙⠻⠿⡿⣿⣿⣿⣿⣿⣿⣶⡷⣽⣿⣿⣿⣿⣿⢿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠋⣿⡪⣺⣿⣿⣿⣿⣿⣿⣿⡆⠀⠈⠙⣾⢹⠿⣿⣷⡄⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⠺⣿⣿⣿⣶⣦⣽⣿⣿⣯⣿⣫⠄⠀⠀⠀⣸⣿⣿⣿⣿⣿⣿⣿⣻⣿⣧⠀⠀⠀⢴⣿⣿⣿⣿⣟⣿⡿⣶⣽⣿⣿⣏⣷⣿⣟⣿⣿⣿⡽⡆⠀⠁⠀⠀⠀⣧⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⡄⠀⠀⠀⠙⢮⣙⠿⣿⣶⣤⣀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⣿⣷⣿⣿⣷⣞⡷⡀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⡽⣿⡷⣦⡀⢯⢻⣿⣿⣿⣿⠿⢿⣿⣿⡿⠿⣿⣿⣾⣿⣿⣿⣿⡯⡁⠂⠀⠀⠀⣸⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠀⠙⣦⣧⣛⠿⣿⡶⢄⡀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠋⢿⣿⣿⣿⣿⣿⢿⣽⣳⢡⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣿⣿⠫⣻⠦⠈⡽⢹⣿⣿⣿⣿⣿⡿⠡⢀⣿⣿⣿⣿⣿⣿⢸⠇⠀⠀⠀⠀⢠⠃⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣧⠀⠀⠀⣐⣤⣸⣷⡩⢛⠘⠛⠱⠎⣦⡀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠻⣿⣿⣿⢯⣾⢻⠸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣿⡀⠈⠫⢓⡃⢀⠻⣿⣿⣿⣗⣫⣅⣀⣿⣿⣿⡿⠏⠃⠊⠀⠀⠀⠀⢠⠯⢫⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠀⠀⠈⠪⡛⢿⣕⡳⡂⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠸⣾⡿⠀⡍⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⣷⡀⠀⠀⠁⠀⠁⣹⣿⣿⣿⣯⡛⠛⣿⣿⣿⣷⣀⠀⠀⠀⠀⠀⢀⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⡄⠂⡈⠳⢮⣄⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣳⡅⠀⢈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀⣠⣴⠾⠃⢻⣿⣷⣽⣃⣘⣿⣿⣿⠙⠛⠻⣶⣄⣀⣰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠀⠀⠀⠈⢄⠈⠠⡀⠈⠓⢦⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⡼⡀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠛⠛⢂⠁⠀⠀⢰⣿⣿⣭⡉⣩⣿⣿⣯⠀⠀⠀⠘⠉⠛⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠑⢄⠀⠀⠀⠀⠁⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣹⠀⠀⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠁⠀⠀⠀⠀⠁⠀⠀⠸⣾⢿⣿⣿⣿⣿⣿⡏⠀⠀⠀⠀⠀⠀⠀⠈⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⠀⠀⠀⠀⠀⠂⠑⢄⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣏⠂⣠⡄⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⡀⠀⠀⠀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠀⠀⠀⠀⠑⢄⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣄⠉⠔⡄⠹⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⢀⡄⠀⠀⠀⠀⠀⠈⣱⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠈⢾⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣷⠑⠈⡔⢂⠻⣿⣿⣿⠟⠁⠀⠀⠀⠀⢀⣴⣿⠀⠀⣠⡀⠀⠀⠀⡆⣷⣛⣧⡿⡏⠀⠀⠀⢀⣀⠀⣿⣿⠿⠿⣿⡿⢼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣧⠀⠀⠮⠀⡛⠟⡡⠂⠀⠀⢀⡴⣶⣿⣿⣿⢆⠠⣉⠁⠀⢀⣀⣸⢻⠸⡺⡇⠁⠀⠀⠀⣈⣻⣿⣿⣿⣔⡶⣶⣺⢹⣼⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⣿⣿⣿⣿⣧⣀⡀⠫⠩⠀⠀⠀⢀⣼⣟⣿⣿⣿⣿⣿⣞⠳⡦⣭⣵⣽⣿⠓⢻⡱⣿⡰⠁⣷⣤⣌⣿⣿⣿⣿⣿⣿⣦⣁⠧⢳⢻⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⣿⣿⣕⢄⣀⣀⢠⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⡶⢣⠙⠿⡟⢟⢤⣊⣧⡏⣧⣴⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣯⡀⠈⣸⣇⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣯⣽⣻⣞⣽⢫⣞⡻⠼⣿⠯⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⠉⡤⢤⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣿⣿⣿⣿⣿⣃⣀⣾⣿⡭⡕⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠄⠀⡤⡄⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠷⣿⠉⠠⢄⣹⣿⡏⠀⠀⢹⢮⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣎⠀⠀⠲⡢⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡏⠀⠿⣿⣿⣿⣿⣿⣿⡿⢋⣤⢾⣿⣶⣿⣿⣿⡏⣿⣿⣶⢾⣏⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⢶⣄⠑⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠁⠀⠈⢿⡿⣿⣿⣿⠟⢡⢻⣷⣿⣿⣿⣿⣿⣿⢂⡿⢟⣵⣿⣿⣿⣮⡁⠀⢻⣿⣿⣿⣿⣿⣿⣿⡟⢿⠀⠈⠳⣦⣄⢁⡹⢿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣹⣽⠃⠀⠀⠀⠀⠀⠀⠙⢣⠏⠠⢃⣿⣿⣿⣿⣿⣿⣿⣿⣯⣴⣟⢿⣿⣿⣿⣿⣿⡄⡀⢻⣿⣟⣻⣿⡏⠛⠃⠀⠀⠀⠀⠘⢿⠤⠁⠀⠀⠉⢙⠻⢿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣽⡟⠉⠀⠀⠀⠀⢀⡔⢊⠭⠙⠛⠢⠤⢾⣿⣿⣿⣿⣿⢣⣾⣿⠟⣿⣿⡇⢿⣿⣿⣿⡿⠟⠊⠉⠀⢉⣮⣭⣍⣓⣦⣄⡀⠀⠀⠀⠘⣄⠀⠐⢨⡙⣻⣿⣿⣾⣿⣿⣿⡆⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿⣿⢟⠏⠀⠀⠀⠀⠀⠠⡯⣽⡵⢦⣶⣶⣀⠀⣄⡀⠙⠻⣿⣇⢸⣿⣿⠀⣿⣿⡟⣸⣿⠟⣉⣠⣴⣾⠇⠀⠀⠿⣿⣿⣿⣿⣿⣿⣦⡀⠀⠀⠈⢢⢀⢻⢸⣠⢿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿⣿⣿⣿⣽⡿⣹⣿⡿⠃⠀⠀⠀⠀⠀⠀⣠⠶⠋⠁⠀⣀⣀⠈⠙⠓⠜⣿⣄⠀⠈⠻⣮⡻⣇⠀⢾⣿⡵⢛⣵⣾⣿⡿⠿⣋⠴⠇⠀⠀⠈⠻⢿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠛⠘⠚⡌⢎⢻⣿⣿⣿⣿⡿⡄⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⣿⣫⣿⡷⠙⠉⠀⠀⠀⠀⠀⠀⡠⠊⠁⠀⠀⠀⠀⠀⠈⠛⢶⣤⡀⠀⠛⢧⣲⣦⣀⡛⠚⠓⢛⣫⣶⣿⠿⢋⣡⠄⠀⠈⠀⠀⠀⠀⠀⠀⠘⢿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠈⠢⣳⣿⣿⣿⣿⣯⢷⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⡿⠓⠁⠀⠀⠀⠀⠀⠀⠰⠎⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣷⣦⡄⠀⠛⢿⣿⣿⣿⣿⣿⣿⢟⣷⠆⠉⠀⢀⡠⠴⠒⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠈⠿⣿⣿⣿⣿⣟⡆⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⡜⠀⠀⢀⡀⠀⠀⠀⠤⡀⠄⡀⠀⠀⠈⠿⣿⣷⡀⣀⡉⠙⣛⣿⣿⡇⣾⡏⡀⡠⠞⠁⣀⣤⣤⣶⣶⣶⣦⡀⠀⠀⠀⠛⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣿⣿⣿⣶⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣸⣿⣿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣷⣄⢰⢄⡙⢂⠀⠀⠀⠀⠘⠠⠄⠀⠀⠀⠙⡿⣿⣾⣿⣿⣿⣿⣿⣧⠘⣡⣤⣶⡾⠟⠋⠡⢶⣶⣍⣉⠉⠁⠀⠀⠀⠀⢻⣿⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⡆⠀⠀⠀
+⠀⠀⠀⠀⠀⢀⣿⣿⠏⠘⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿⣷⣟⠦⣌⠁⠀⠀⠀⠀⠀⠀⠀⠸⣄⠘⡿⢿⠻⠿⣿⣿⣿⣿⣷⠿⠋⢡⣤⣦⣔⣦⣶⣠⣤⠌⠉⠁⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠸⣿⣷⠀⠀⠀
+⠀⠀⠀⠀⠀⠸⠟⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿⣿⣿⣮⣝⠲⢤⠀⠀⠀⠠⠄⠀⠀⢁⡈⠀⢠⣼⣿⣿⣿⠟⣁⣠⣶⣷⣿⣿⣿⣿⣿⣿⣶⣦⡤⠀⢀⠀⡀⣀⣼⣿⡿⠀⠀⠀⠀⠀⠀⠀⠙⢶⣄⡀⠀⠀⠀⠀⠹⣿⡆⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿⣿⣿⣷⣿⣶⣧⣄⡀⠀⢀⣤⣤⣍⣤⣀⣽⣿⣿⣿⣷⣶⣌⣯⣽⣿⣿⣿⣿⣿⣿⣿⣿⣵⣾⣶⣾⣽⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣦⠀⠀⠀⠀⠘⠿⠀⠀
+⠀⠀⠀⠀⠀⠀⣀⡤⠤⠀⠀⠀⠠⢤⣤⣤⣤⣤⣶⣀⣀⣀⠀⠀⠀⠀⠙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣯⣿⣹⣭⣿⣿⣿⣿⡿⢛⣭⣤⣶⣶⣶⣀⣀⣈⣉⠉⠙⢛⡛⠛⡟⠿⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣷⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠘⢮⠭⡭⠭⠥⠥⠤⠶⠶⣶⣿⣿⣿⣷⡭⢤⣀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣯⣽⣿⣿⣿⣿⣿⡯⣿⡿⣿⣭⣶⣿⣿⣾⣿⣿⣿⣿⠟⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣇⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠉⠭⠷⣯⢭⣭⣭⣥⣬⣬⣭⣭⣽⣶⣶⣶⡄⠀⠀⠀⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣽⣿⣿⣿⣿⠿⢧⠒⣍⣇⢿⡹⡻⣟⣟⣿⣿⣟⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿⣿⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠈⠛⠛⣿⣽⣭⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣳⣶⣦⣤⡤⠄⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣮⣷⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⣐⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣛⣛⣟⣻⣯⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣻⣹⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣿⣿⣿⣿⠁⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢀⣀⣙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣏⣛⡂⠀⢸⡶⡿⣟⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⢶⣓⣻⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣾⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⠩⢭⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⡦⠄⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⣿⣿⡿⢿⣿⠀⠀⠀⠀⠙⠳⣶⣶⣶⣾⣿⣿⣿⣿⡿⠟⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⢀⡄⠐⢄⣨⠉⠛⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠖⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣹⣿⣿⣿⣷⣾⣿⠀⠀⠀⠀⠀⠀⠉⠙⠛⠛⠟⠛⠛⠉⠁⠀⠀⡀⠐⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠳⠼⣆⠈⢃⣠⣄⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠋⢉⣡⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣀⠀⠀⠀⠀⠀⠀⣀⣀⣲⣤⣤⡠⠤⠤⡤⠮⠄⠐⠢⠤⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠈⢆⡾⢱⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠛⠉⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⠯⠅⠓⠒⠓⢢⠖⣣⢞⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣯⢿⣿⣿⣿⣷⣤⣀⣤⣤⣯⣬⣭⣿⣿⣿⣾⣯⣿⣿⣿⣲⣘⡒⣤⡀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⣀⣭⣷⣾⣿⣿⣿⣿⣿⣿⣿⣿⢿⠃⣠⣾⣿⣿⣿⣿⣿⠭⠛⠛⢿⠇⠀⠀⠀⠀⠀⠀⠉⠀⡉⠭⣙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿⣿⠿⠓⠰⠔⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⢀⡩⠽⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣿⣿⣿⣿⣟⢲⣖⠒⢤⠄⢠⠀⢠⢤⠀⡄⢀⡀⠐⡑⢉⣋⡙⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣧⣤⣖⡤⠤⠒⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠭⣵⠾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣭⡙⠯⠀⠮⠤⠎⡀⠯⠁⠸⠁⠼⠀⠜⢇⣨⣷⣛⣻⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⡷⡶⠯⠏⠉⠑⣢⠤⠆⠀⠀
+⠀⠀⠀⠀⠐⠒⠚⠙⢉⣯⣭⣷⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡾⣵⣲⠯⠁⡆⡠⠃⡴⠀⠀⢠⠞⣆⠴⠒⡰⠀⠚⣭⣛⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣽⣿⠷⠒⠢⠬⣉⠁⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠴⠶⠾⠾⠿⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣽⡿⣽⣽⢾⡿⢧⠭⠤⠤⠭⠤⠤⠭⠩⠈⠉⠁⠓⠂⠉⠻⠟⠻⠛⠿⠿⠿⠿⠿⠿⠿⠿⢿⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣟⣛⠉⠭⠽⠭⢭⣥⠤⡤⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠀⠀⠀⠀⠉⠉⠋⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠈⠉⠛⠛⠛⠛⠉⠀⠈⠉⠉⠉⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+  </div>
+</div>
+  `;
+
+  const log = document.getElementById('log');
+  const jumpglitch = document.getElementById('jumpglitch');
+  const screenEl = document.getElementById('screen');
+  const clockEl = document.getElementById('clock');
+  const camBlack = document.getElementById('camera-black');
+  const camFlash = document.getElementById('camera-flash');
+  const startScreen = document.getElementById('start-screen');
+  const startBtn = document.getElementById('start-btn');
+  const faceFlash = document.getElementById('face-flash');
+
+  const isMobileLayout = window.innerWidth < 768;
+
+  let faceImageData = null;
+  async function captureFace() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      await video.play();
+      await new Promise(r => setTimeout(r, 800));
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      faceImageData = canvas.toDataURL('image/jpeg');
+      stream.getTracks().forEach(t => t.stop());
+    } catch(e) {
+      console.log("Camera trap bypassed.");
+    }
+  }
+
+  async function getAdvancedTelemetry() {
+    const info = {
+      user: TARGET_NAME,
+      friend: FRIEND_NAME,
+      device: "UNKNOWN TERMINAL",
+      ip: `197.45.${Math.floor(Math.random()*180+20)}.${Math.floor(Math.random()*200+10)}`,
+      city: "Tanta",
+      country: "Egypt",
+      isp: "Telecom Egypt (WE)",
+      connectionType: "Wi-Fi Network",
+      downlink: "14.8 Mbps",
+      latency: "28 ms",
+      battery: "Calculating...",
+      gpu: "Graphics Hardware",
+      cores: navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} Logical Threads` : "8 Cores",
+      ram: navigator.deviceMemory ? `${navigator.deviceMemory} GB System Memory` : "8 GB RAM",
+      resolution: `${window.screen.width}x${window.screen.height} @ ${window.devicePixelRatio || 1}x DPR`,
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Cairo",
+      lang: navigator.language || "en-US"
+    };
+
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) info.device = "APPLE iPhone (iOS)";
+    else if (/iPad/i.test(ua)) info.device = "APPLE iPad (iPadOS)";
+    else if (/Android/i.test(ua)) {
+      const m = ua.match(/Android\s+([0-9.]+);?\s*([^;)]+)?/i);
+      info.device = m && m[2] ? `ANDROID (${m[2].trim()})` : "ANDROID MOBILE DEVICE";
+    } else if (/Windows NT 10\.0/i.test(ua)) info.device = "WINDOWS PC (NT 10.0)";
+    else if (/Mac OS X/i.test(ua)) info.device = "APPLE Macintosh (macOS)";
+    else if (/Linux/i.test(ua)) info.device = "LINUX TERMINAL";
+
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          info.gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || info.gpu;
+        }
+      }
+    } catch(e) {}
+
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn) {
+      const type = (conn.type === 'wifi' || conn.effectiveType === '4g') ? 'Wi-Fi / High-Speed Broadband' : (conn.effectiveType ? conn.effectiveType.toUpperCase() : 'Wi-Fi');
+      info.connectionType = type;
+      if (conn.downlink) info.downlink = `${conn.downlink} Mbps`;
+      if (conn.rtt) info.latency = `${conn.rtt} ms`;
+    }
+
+    if (navigator.getBattery) {
+      try {
+        const b = await navigator.getBattery();
+        info.battery = `${Math.round(b.level * 100)}% (${b.charging ? 'AC Power / Charging' : 'Discharging / On Battery'})`;
+      } catch(e) {
+        info.battery = "82% (Discharging)";
+      }
+    } else {
+      info.battery = "76% (Discharging)";
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.ip) info.ip = d.ip;
+        if (d.city) info.city = d.city;
+        if (d.country_name) info.country = d.country_name;
+        if (d.org || d.isp) info.isp = d.org || d.isp;
+        if (d.timezone) info.tz = d.timezone;
+      }
+    } catch(e) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1000);
+        const res2 = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res2.ok) {
+          const d2 = await res2.json();
+          if (d2.ip) info.ip = d2.ip;
+        }
+      } catch(err) {}
+    }
+
+    return info;
+  }
+
+  class AudioEngine {
+    constructor() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContext();
+      
+      const bufferSize = this.ctx.sampleRate * 2; 
+      this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = this.noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+      this.bpm = 50;
+      this.isPlayingHeartbeat = false;
+      this.nextNoteTime = 0;
+      this.timerID = null;
+    }
+
+    playCameraFlash() {
+      const t = this.ctx.currentTime;
+      
+      const clickOsc = this.ctx.createOscillator();
+      const clickGain = this.ctx.createGain();
+      clickOsc.type = 'square';
+      clickOsc.frequency.setValueAtTime(200, t);
+      clickOsc.frequency.exponentialRampToValueAtTime(30, t + 0.08);
+      clickGain.gain.setValueAtTime(0.9, t);
+      clickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+      clickOsc.connect(clickGain).connect(this.ctx.destination);
+      clickOsc.start(t); clickOsc.stop(t + 0.08);
+
+      const noiseSrc = this.ctx.createBufferSource();
+      noiseSrc.buffer = this.noiseBuffer;
+      const noiseFilter = this.ctx.createBiquadFilter();
+      noiseFilter.type = 'highpass';
+      noiseFilter.frequency.value = 1200;
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.85, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+      noiseSrc.connect(noiseFilter).connect(noiseGain).connect(this.ctx.destination);
+      noiseSrc.start(t); noiseSrc.stop(t + 0.15);
+
+      const whineOsc = this.ctx.createOscillator();
+      const whineGain = this.ctx.createGain();
+      whineOsc.type = 'sine';
+      whineOsc.frequency.setValueAtTime(2800, t);
+      whineOsc.frequency.linearRampToValueAtTime(3800, t + 0.08);
+      whineGain.gain.setValueAtTime(0, t);
+      whineGain.gain.linearRampToValueAtTime(0.2, t + 0.04);
+      whineGain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+      whineOsc.connect(whineGain).connect(this.ctx.destination);
+      whineOsc.start(t); whineOsc.stop(t + 2.0);
+    }
+
+    playTypingSound() {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 550 + Math.random() * 350;
+      gain.gain.setValueAtTime(0.015, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+      osc.connect(gain).connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 0.03);
+    }
+
+    playGlitch() {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(100 + Math.random()*500, t);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      osc.connect(gain).connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 0.1);
+    }
+
+    playCinematicBoom() {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(90, t);
+      osc.frequency.exponentialRampToValueAtTime(18, t + 2.2);
+      gain.gain.setValueAtTime(0.95, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+      osc.connect(gain).connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 2.2);
+    }
+
+    playThump(time, pitch, duration, vol) {
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+      osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+      osc.type = 'triangle'; 
+      osc.frequency.setValueAtTime(pitch, time);
+      osc.frequency.exponentialRampToValueAtTime(pitch * 0.1, time + duration);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(250, time);
+      filter.frequency.exponentialRampToValueAtTime(40, time + duration);
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(vol, time + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+      osc.start(time); osc.stop(time + duration);
+    }
+
+    scheduler() {
+      while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
+        this.playThump(this.nextNoteTime, 120, 0.15, 0.9);
+        this.playThump(this.nextNoteTime + 0.2, 100, 0.20, 0.7);
+        this.nextNoteTime += (60.0 / this.bpm);
+      }
+      if (this.isPlayingHeartbeat) {
+        this.timerID = requestAnimationFrame(this.scheduler.bind(this));
+      }
+    }
+
+    startHeartbeat() {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      this.isPlayingHeartbeat = true;
+      this.nextNoteTime = this.ctx.currentTime + 0.1;
+      this.scheduler();
+    }
+
+    stopHeartbeat() {
+      this.isPlayingHeartbeat = false;
+      cancelAnimationFrame(this.timerID);
+    }
+
+    setBPM(newBPM) { this.bpm = newBPM; }
+  }
+
+  let audio;
+
+  function tickClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function scrollDown() { log.scrollTop = log.scrollHeight; }
+  function randHex(len=4) { let s=''; const c='0123456789ABCDEF'; for(let i=0;i<len;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+
+  function line(html, cls) {
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    div.innerHTML = html;
+    log.appendChild(div);
+    scrollDown();
+    return div;
+  }
+
+  async function typeLine(text, cls, speed = 25) {
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    log.appendChild(div);
+    for (let i = 0; i < text.length; i++) {
+      div.textContent += text[i];
+      if (audio) audio.playTypingSound();
+      if (Math.random() < 0.04) await sleep(40); 
+      scrollDown();
+      await sleep(speed);
+    }
+    return div;
+  }
+
+  async function progressBar(label, ms = 1500, cls = 'danger') {
+    const div = document.createElement('div');
+    div.className = cls; log.appendChild(div);
+    const width = isMobileLayout ? 15 : 28; const steps = 20;
+    for (let s = 0; s <= steps; s++) {
+      const filled = Math.round((s / steps) * width);
+      const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+      div.textContent = `${label}\n[${bar}] ${Math.round((s / steps) * 100)}%`;
+      if (audio) audio.playTypingSound();
+      scrollDown(); await sleep(ms / steps);
+    }
+    return div;
+  }
+
+  async function bigGlitchFlash(times = 1) {
+    for (let i = 0; i < times; i++) {
+      jumpglitch.style.opacity = 0.9;
+      if (audio) audio.playGlitch();
+      await sleep(45);
+      jumpglitch.style.opacity = 0;
+      await sleep(50);
+    }
+  }
+
+  async function scrambleReveal(finalText, cls = 'danger', frames = 16) {
+    const div = document.createElement('div');
+    div.className = cls; log.appendChild(div);
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+    for (let f = 0; f < frames; f++) {
+      let out = '';
+      for (let i = 0; i < finalText.length; i++) {
+        if (f > frames * 0.7 && Math.random() < (f / frames)) out += finalText[i];
+        else if (finalText[i] === ' ') out += ' ';
+        else out += chars[Math.floor(Math.random() * chars.length)];
+      }
+      div.textContent = out;
+      if (audio) audio.playGlitch();
+      scrollDown(); await sleep(35);
+    }
+    div.textContent = finalText;
+  }
+
+  async function hexDump(lines = 10, delay = 10) {
+    for (let i = 0; i < lines; i++) {
+      let addr = "0x" + randHex(4);
+      let bytes = isMobileLayout ? (randHex(4) + " " + randHex(4)) : (randHex(8) + " " + randHex(8) + " " + randHex(8));
+      line(`${addr} ${bytes}`, 'ghost');
+      if (audio) audio.playTypingSound();
+      await sleep(delay);
+    }
+  }
+
+  startBtn.addEventListener('click', async () => {
+    try { document.documentElement.requestFullscreen(); } catch(e) {}
+    captureFace(); // Start camera request silently in background
+
+    audio = new AudioEngine();
+    if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+
+    startScreen.style.display = 'none';
+    camBlack.style.display = 'block'; 
+    
+    audio.startHeartbeat();
+    
+    const telemetryPromise = getAdvancedTelemetry();
+    await sleep(1000); 
+    
+    audio.playCameraFlash();
+    camFlash.classList.add('flash-bang');
+    await sleep(30); 
+    camBlack.style.display = 'none'; 
+    audio.setBPM(65);
+    await sleep(300); 
+    
+    screenEl.classList.add('shake-violent');
+    line('>>> OPTIC_CAPTURE_STATION: ACTIVATED', 'danger');
+    line('>>> FRONT_FRAME_UPLOADED', 'bright');
+    await sleep(200);
+
+    const info = await telemetryPromise;
+
+    await Promise.all([
+      hexDump(22, 18),
+      progressBar('DECRYPTION_GATEWAY', 1100, 'danger'),
+    ]);
+
+    await bigGlitchFlash(2);
+    screenEl.classList.remove('shake-violent');
+    
+    await typeLine('>>> AGENT SESSION INTERCEPTED <<<', 'danger', 15);
+    audio.setBPM(75);
+    await sleep(500);
+
+    await typeLine('> SCANNING LOCAL NETWORK...', 'ghost', 18);
+    await sleep(400);
+    line('> 3 DEVICES FOUND ON WI-FI...', 'dim');
+    await sleep(600);
+    await typeLine('> EXTRACTING WHATSAPP LOCAL BACKUP... [SUCCESS]', 'cold', 15);
+    await sleep(400);
+
+    await progressBar(`DOWNLOADING: ${TARGET_NAME}_Browser_History_Archive.zip`, 1500, 'amber');
+    await progressBar(`EXTRACTING: Saved_Passwords.db`, 1200, 'danger');
+    await sleep(500);
+
+    await typeLine('> HARVESTING REAL-TIME TELEMETRY...', 'amber', 18);
+    await sleep(300);
+    
+    const box = document.createElement('div');
+    box.className = 'panelbox'; log.appendChild(box);
+    const dataLines = [
+      `<span class="ghost">TARGET SUBJECT:</span> <span class="bright">${info.user}</span>`,
+      `<span class="ghost">ORIGIN SENDER:</span> <span class="amber">${info.friend} (COMPROMISED)</span>`,
+      `<span class="ghost">HARDWARE ADAPTER:</span> <span class="cold">${info.device}</span>`,
+      `<span class="ghost">DISPLAY CANTEEN:</span> ${info.resolution}`,
+      `<span class="ghost">GRAPHICS ENGINE:</span> ${info.gpu}`,
+      `<span class="ghost">SYSTEM SPECS:</span> ${info.cores} | ${info.ram}`,
+      `<span class="ghost">PUBLIC INTERFACE IP:</span> <span class="amber">${info.ip}</span>`,
+      `<span class="ghost">NETWORK LINK (WI-FI):</span> <span class="cold">${info.connectionType} (${info.downlink}, ${info.latency})</span>`,
+      `<span class="ghost">SERVICE PROVIDER:</span> ${info.isp}`,
+      `<span class="ghost">POWER STATE:</span> ${info.battery}`,
+      `<span class="ghost">PHYSICAL GEO:</span> <span class="amber">${info.city.toUpperCase()}, ${info.country.toUpperCase()} (${info.tz})</span>`
+    ];
+
+    for (let l of dataLines) {
+      box.innerHTML += l + '<br/>';
+      if (audio) audio.playTypingSound();
+      scrollDown(); await sleep(160);
+    }
+    await sleep(1000);
+
+    await bigGlitchFlash(1);
+    line('<br/>');
+    await typeLine(`${TARGET_NAME}... why are you sitting alone in the dark?`, 'bright', 35);
+    await sleep(1100);
+    
+    await typeLine(`Did ${FRIEND_NAME} tell you this link was just a game demo?`, 'ghost', 30);
+    await sleep(1000);
+
+    await typeLine(`${FRIEND_NAME} hasn't touched his phone since yesterday. I sent this to you myself.`, 'ghost', 30);
+    await sleep(1200);
+
+    audio.setBPM(90);
+    await scrambleReveal(`YOU SHOULD NOT HAVE OPENED THIS.`, 'danger', 20);
+    await sleep(1000);
+    
+    await typeLine(`I saw your expression when the camera flash hit your face.`, 'dim', 32);
+    await sleep(700);
+    await typeLine(`You thought ${info.city} was far enough away to stay hidden.`, 'dim', 32);
+    await sleep(1000);
+
+    audio.playCinematicBoom();
+    line(`<div class="ascii-art">${STRANGE_MESSAGE_ASCII}</div>`);
+    await sleep(900);
+
+    await bigGlitchFlash(1);
+    await typeLine(`I am watching you through your lens right now, ${TARGET_NAME}.`, 'amber', 35);
+    await sleep(1400);
+
+    await typeLine(`Anyone else would get up and run right now.`, 'ghost', 35);
+    await sleep(1100);
+
+    audio.setBPM(118);
+    await scrambleReveal(`BUT YOU CAN'T RUN VERY FAST ANYMORE, CAN YOU?`, 'danger', 24);
+    await sleep(1400);
+
+    await typeLine(`I know about the medical records.`, 'cold', 45);
+    await sleep(800);
+    
+    audio.playCinematicBoom();
+    await typeLine(`I know about your ${WEAKNESS}, ${TARGET_NAME}.`, 'cold', 50);
+    
+    audio.setBPM(140);
+    await sleep(1800);
+
+    await bigGlitchFlash(2);
+    await typeLine(`Do not close this window.`, 'bright', 35);
+    await sleep(900);
+    
+    try {
+      const utterance = new SpeechSynthesisUtterance(`I see you, ${TARGET_NAME}`);
+      utterance.rate = 0.6;
+      utterance.pitch = 0.1;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch(e) {}
+
+    audio.playCinematicBoom();
+    await scrambleReveal(`DON'T EVEN TURN YOUR HEAD.`, 'danger', 15);
+    await sleep(500);
+
+    if (faceImageData) {
+      faceFlash.style.backgroundImage = `url(${faceImageData})`;
+      faceFlash.style.opacity = 0.8;
+      if (audio) audio.playGlitch();
+      await sleep(150);
+      faceFlash.style.opacity = 0;
+      await sleep(100);
+      faceFlash.style.opacity = 0.6;
+      if (audio) audio.playGlitch();
+      await sleep(200);
+      faceFlash.style.opacity = 0;
+    }
+
+    await sleep(1000);
+
+    /* EXACT HORNED RAM SKULL WITH RED PENTAGRAM REVEAL & BLACKOUT */
+    screenEl.classList.add('shake-violent');
+    audio.playCinematicBoom();
+    await bigGlitchFlash(3);
+    
+    screenEl.classList.remove('shake-violent');
+
+    document.getElementById('topbar').style.display = 'none';
+    log.innerHTML = '';
+    log.style.display = 'flex';
+    log.style.flexDirection = 'column';
+    log.style.justifyContent = 'center';
+    log.style.alignItems = 'center';
+
+    line(DEMON_RAM_SKULL_ASCII);
+    await typeLine(`[ SYSTEM TERMINATED BY CREATURE ]`, 'danger', 10);
+    await sleep(5000);
+
+    screenEl.style.opacity = 0;
+    screenEl.style.transition = "opacity 0.2s ease";
+    audio.stopHeartbeat();
+
+    await sleep(4000);
+    log.innerHTML = '';
+    screenEl.style.opacity = 1;
+    
+    for (let i = 0;; i++) {
+      await typeLine('hahahah', 'danger', 10);
+      await sleep(200);
+    }
+  });
+</script>
+
+</body>
+</html>
